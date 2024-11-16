@@ -427,13 +427,13 @@ class TradingEnvUniqueMultiple(gym.Env):
 
         self.Actions.append(int(action))
         if action != self.num_stocks: #actions is a stock
-            next_close_price = self.df_unscaled.iloc[self.history_length+self.steps]['Close'][self.Actions[-1]] #price of action stock on next day
-            close_price = self.df_unscaled.iloc[self.history_length+self.steps-1]['Close'][self.Actions[-1]] #price today of action stock to buy
+            next_close_price = self.df_unscaled.iloc[self.history_length+self.steps,self.num_stocks+self.Actions[-1]] #price of action stock on next day
+            close_price = self.df_unscaled.iloc[self.history_length+self.steps-1,self.num_stocks+self.Actions[-1]] #price today of action stock to buy
 
             cash_today = self.cash[-1]
             if self.steps != 0: #if not first step
                 if self.shares[-1] != 0:
-                    sell_price = self.df_unscaled.iloc[self.history_length+self.steps-1]['Close'][self.Actions[-2]] #sell price of current stock
+                    sell_price = self.df_unscaled.iloc[self.history_length+self.steps-1,self.num_stocks+self.Actions[-2]] #sell price of current stock
                 if self.Actions[-1] != self.Actions[-2]: #if different stock than previous
                     cash_today = (self.cash[-1] + (1 - self.sell_com) * self.shares[-1] * sell_price)
                     self.shares.append((1 - self.buy_com) * cash_today / close_price)
@@ -450,9 +450,9 @@ class TradingEnvUniqueMultiple(gym.Env):
             cash_today = self.cash[-1]
             if self.steps != 0:
                 if self.shares[-1] != 0: #if you have shares
-                    sell_price = self.df_unscaled.iloc[self.history_length+self.steps-1]['Close'][self.Actions[-2]]
-                    next_close_price = self.df_unscaled.iloc[self.history_length+self.steps]['Close'][self.Actions[-2]]
-                    close_price = self.df_unscaled.iloc[self.history_length+self.steps-1]['Close'][self.Actions[-2]]
+                    sell_price = self.df_unscaled.iloc[self.history_length+self.steps-1,self.num_stocks+self.Actions[-2]]
+                    next_close_price = self.df_unscaled.iloc[self.history_length+self.steps,self.num_stocks+self.Actions[-2]]
+                    close_price = self.df_unscaled.iloc[self.history_length+self.steps-1,self.num_stocks+self.Actions[-2]]
                     cash_today = (self.cash[-1] + (1 - self.sell_com) * self.shares[-1] * sell_price)
                     self.shares.append(0)
                     self.cash.append(cash_today)
