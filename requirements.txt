@@ -1,0 +1,16 @@
+ib_insync
+numpy
+pandas
+yfinance
+matplotlib
+ta
+seaborn
+gymnasium
+stable-baselines3
+sb3-contrib
+tensorflow
+scikit-learn
+quantstats
+imitation
+fredapi
+typing
