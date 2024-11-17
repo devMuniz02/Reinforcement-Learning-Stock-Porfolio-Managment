@@ -774,7 +774,23 @@ def evaluate_buy(venv, SEED):
     venv.render(mode='total')
     return buy_actions, buy_returns, total_reward
 
-def evaluate_model(venv, trainer, name, SEED, has_policy=True):
+def evaluate_model(venv, trainer, name, SEED, has_policy=False):
+    """
+    Evaluates the provided model or trainer in a given environment.
+
+    Args:
+        venv: The environment to evaluate the model on. Must support `reset`, `step`, and `render` methods.
+        trainer: The model or agent used for evaluation. If `has_policy` is True, it must have a `policy.predict` method.
+        name (str): A descriptive name for the evaluation (e.g., for logging or debugging purposes).
+        SEED (int): The random seed to ensure reproducibility of environment behavior.
+        has_policy (bool, optional): Indicates whether the `trainer` has a `policy` attribute. Defaults to False.
+
+    Returns:
+        tuple:
+            - model_actions (list): A list of actions taken by the model during evaluation.
+            - returns (any): The cumulative return of the environment, as provided by `venv.returns()`.
+            - total_reward (float): The total reward accumulated during the evaluation.
+    """
     print(name)
     i = 0
     model_actions = []
@@ -842,3 +858,267 @@ def evaluate_all(name, model, has_policy, SEED):
     evaluate_best(test_venv,expert_actions_test,SEED)
     evaluate_buy(test_venv,SEED)
     evaluate_model(test_venv,name=name,has_policy=has_policy,SEED=SEED,trainer=model)
+    
+def create_training_env(history_length, reward_type, start_date, end_date, stocks, n_envs):
+    """
+    Create a vectorized environment for training.
+    """
+    env, env_fn, date_interval, scalers, df, df_unscaled = create_env(
+        history_length, reward_type, start_date, end_date, stocks, True, []
+    )
+    check_env(env)
+    vec_env = make_vec_env(env_fn, n_envs=n_envs, vec_env_cls=SubprocVecEnv)
+    return env, vec_env
+
+def create_evaluation_env(history_length, reward_type, start_date, end_date, stocks, n_envs=1):
+    """
+    Create a vectorized environment for evaluation.
+    """
+    env, env_fn, _, _, _, _ = create_env(history_length, reward_type, start_date, end_date, stocks, True, [])
+    check_env(env)
+    vec_env = make_vec_env(env_fn, n_envs=n_envs, vec_env_cls=SubprocVecEnv)
+    return env, vec_env
+
+def save_model(model, folder_path, file_name="best_model"):
+    """
+    Save the trained model to the specified folder.
+    """
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+    model.save(os.path.join(folder_path, file_name))
+    
+from stable_baselines3 import PPO, A2C, DQN
+from stable_baselines3.common.callbacks import EvalCallback
+from stable_baselines3.common.env_util import make_vec_env
+
+from stable_baselines3 import PPO, A2C, DQN
+from imitation.algorithms.bc import BC
+from stable_baselines3.common.evaluation import evaluate_policy
+
+def train_model(
+    model_name,
+    model=None,
+    create_model=False,
+    vec_env=None,
+    env=None,  # Required for BC
+    transitions=None,  # Required for BC
+    iterations=1,
+    train_timesteps=10_000,
+    log_frec=10,
+    log_base_dir="./logs",
+    n_steps=10,
+    batch_size=50,
+    learning_rate=0.001,
+    ent_coef=0.10,
+    seed=1,
+    bc_batches=10_000,
+    bc_log_interval=1_000
+):
+    """
+    Train PPO, A2C, DQN, or BC models.
+
+    Args:
+        model_name (str): The name of the model ('PPO', 'A2C', 'DQN', or 'BC').
+        model: A pre-initialized model instance (optional if create_model is True).
+        create_model (bool): Whether to dynamically create the model.
+        vec_env: The vectorized training environment (required for PPO, A2C, DQN).
+        env: The single environment (required for BC).
+        transitions: Expert data for Behavior Cloning (required for BC).
+        iterations (int): Number of iterations for training RL models.
+        train_timesteps (int): Total timesteps for training RL models.
+        log_frec (int): Logging frequency.
+        log_base_dir (str): Base directory for TensorBoard logs.
+        n_steps (int): Number of steps for RL models.
+        batch_size (int): Batch size for RL models.
+        learning_rate (float): Learning rate for RL models.
+        ent_coef (float): Entropy coefficient for RL models.
+        seed (int): Random seed for reproducibility.
+        bc_batches (int): Number of batches for BC training.
+        bc_log_interval (int): Logging interval for BC.
+
+    Returns:
+        model: The trained model.
+    """
+    if create_model:
+        if model_name == 'PPO':
+            if vec_env is None:
+                raise ValueError("vec_env is required for PPO.")
+            model = PPO(
+                "MlpPolicy",
+                vec_env,
+                learning_rate=learning_rate,
+                n_steps=n_steps,
+                batch_size=batch_size,
+                ent_coef=ent_coef,
+                verbose=1
+            )
+        elif model_name == 'A2C':
+            if vec_env is None:
+                raise ValueError("vec_env is required for A2C.")
+            model = A2C(
+                "MlpPolicy",
+                vec_env,
+                learning_rate=learning_rate,
+                n_steps=n_steps,
+                ent_coef=ent_coef,
+                verbose=1
+            )
+        elif model_name == 'DQN':
+            if vec_env is None:
+                raise ValueError("vec_env is required for DQN.")
+            model = DQN(
+                "MlpPolicy",
+                vec_env,
+                learning_rate=learning_rate,
+                batch_size=batch_size,
+                verbose=1
+            )
+        elif model_name == 'BC':
+            if env is None or transitions is None:
+                raise ValueError("env and transitions are required for BC.")
+            model = BC(
+                observation_space=env.observation_space,
+                action_space=env.action_space,
+                demonstrations=transitions,
+                rng=np.random.default_rng(seed),
+                batch_size=batch_size
+            )
+        else:
+            raise ValueError(f"Unsupported model: {model_name}")
+
+    if model is None:
+        raise ValueError("Model instance must be provided or create_model must be True.")
+
+    if model_name in ['PPO', 'A2C', 'DQN']:
+        # Train RL models
+        for i in range(iterations):
+            log_dir = f"{log_base_dir}/{model_name}/{i}_run/"
+            if i == 0:
+                model.learn(
+                    total_timesteps=train_timesteps,
+                    progress_bar=False,
+                    log_interval=log_frec,
+                    tb_log_name=f"{i}_run",
+                    reset_num_timesteps=True
+                )
+            else:
+                model.learn(
+                    total_timesteps=train_timesteps,
+                    progress_bar=False,
+                    log_interval=log_frec,
+                    tb_log_name=f"{i}_run",
+                    reset_num_timesteps=False
+                )
+    elif model_name == 'BC':
+        # Evaluate BC policy before training
+        env.reset(seed)
+        mean_reward_bc_before, std_reward_bc_before = evaluate_policy(
+            model.policy, env, n_eval_episodes=1, return_episode_rewards=False, deterministic=True
+        )
+        print("BC Learner rewards before training:")
+        print(f"Mean reward: {mean_reward_bc_before} +/- {std_reward_bc_before:.2f}")
+
+        # Train BC model
+        model.train(
+            n_batches=bc_batches,
+            log_interval=bc_log_interval,
+            progress_bar=False
+        )
+
+        # Evaluate BC policy after training
+        env.reset(seed)
+        mean_reward_bc_after, std_reward_bc_after = evaluate_policy(
+            model.policy, env, n_eval_episodes=1, return_episode_rewards=False, deterministic=True
+        )
+        print("BC Learner rewards after training:")
+        print(f"Mean reward: {mean_reward_bc_after} +/- {std_reward_bc_after:.2f}")
+
+    return model
+
+def collect_expert_data(env, seed=SEED):
+    """
+    Collect expert trajectories and generate transitions for Behavior Cloning (BC).
+
+    Args:
+        env: The trading environment used for collecting expert data.
+        seed (int): Random seed for reproducibility.
+
+    Returns:
+        tuple: A tuple containing:
+            - transitions (Transitions): Transitions object for Behavior Cloning.
+            - expert_actions (np.array): Expert actions collected during the trajectory.
+    """
+    # Set the random seed for the environment
+    obs, _ = env.reset(seed=seed)
+    done = False
+
+    # Initialize storage for expert data
+    expert_obs = []
+    expert_actions = []
+
+    while not done:
+        # Calculate daily percentage change for each stock to determine the best action
+        percentage_changes = np.abs(
+            (env.df_unscaled['Close'].pct_change().iloc[env.steps + env.history_length] + 1).fillna(0).values
+        )
+        percentage_changes = np.append(percentage_changes, 1)  # Add cash/no-action option
+
+        # Determine the current held position
+        current_position = expert_actions[-1] if expert_actions else None
+
+        # Adjust for commissions
+        adjusted_changes = [
+            (change - env.buy_com - env.sell_com) if action != current_position and action != env.num_stocks
+            else (change - env.sell_com) if action == env.num_stocks and action != current_position
+            else change
+            for action, change in enumerate(percentage_changes)
+        ]
+
+        # Choose the action with the highest adjusted percentage change
+        best_action = np.argmax(adjusted_changes)
+
+        # Store the observation and best action
+        expert_obs.append(obs)
+        expert_actions.append(best_action)
+
+        # Take the best action and proceed in the environment
+        obs, _, done, _, _ = env.step(best_action)
+
+    # Convert expert data to numpy arrays
+    expert_obs = np.array(expert_obs)
+    expert_actions = np.array(expert_actions)
+
+    # Collect transitions for Behavior Cloning
+    expert_observations = []
+    expert_actions_list = []
+    terminals = []
+
+    # Reset the environment
+    observation, _ = env.reset(seed=seed)
+
+    for action in expert_actions:
+        # Step the environment using the expert action
+        next_observation, reward, done, _, _ = env.step(action)
+
+        # Store the observation, action, and done status
+        expert_observations.append(observation)
+        expert_actions_list.append(action)
+        terminals.append(done)
+
+        # Update the current observation
+        observation = next_observation
+
+        # Reset the environment if the episode is done
+        if done:
+            observation, _ = env.reset(seed=seed)
+
+    # Convert collected data into Transitions
+    transitions = Transitions(
+        obs=np.array(expert_observations),
+        acts=np.array(expert_actions_list),
+        next_obs=np.zeros_like(expert_observations),  # Placeholder for next_obs
+        dones=np.array(terminals),
+        infos=np.array([{}] * len(expert_observations))  # Placeholder for infos
+    )
+
+    return transitions, expert_actions
