@@ -891,6 +891,7 @@ from stable_baselines3 import PPO, A2C, DQN
 from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.env_util import make_vec_env
 
+<<<<<<< HEAD
 from stable_baselines3 import PPO, A2C, DQN
 from imitation.algorithms.bc import BC
 from stable_baselines3.common.evaluation import evaluate_policy
@@ -935,14 +936,55 @@ def train_model(
         seed (int): Random seed for reproducibility.
         bc_batches (int): Number of batches for BC training.
         bc_log_interval (int): Logging interval for BC.
+=======
+def train_model(
+    model_name,
+    model,
+    create_model,
+    vec_env,
+    iterations,
+    train_timesteps,
+    log_frec,
+    log_base_dir,
+    n_steps,
+    batch_size,
+    learning_rate,
+    ent_coef
+):
+    """
+    Train PPO, A2C, or DQN models with optional model creation.
+
+    Args:
+        model_name (str): The name of the RL model ('PPO', 'A2C', or 'DQN').
+        model: A pre-initialized RL model instance (optional if create_model is True).
+        create_model (bool): Whether to dynamically create the RL model.
+        vec_env: The vectorized training environment.
+        iterations (int): Number of training iterations.
+        train_timesteps (int): Number of timesteps to train in each iteration.
+        log_frec (int): Logging frequency for training.
+        log_base_dir (str): Base directory for TensorBoard logs.
+        n_steps (int): Number of steps for RL models (default: 10).
+        batch_size (int): Batch size for RL models (default: 50).
+        learning_rate (float): Learning rate for RL models (default: 0.001).
+        ent_coef (float): Entropy coefficient for RL models (default: 0.10).
+>>>>>>> b1d83806e07a226e858795dc16f6af58e4f9a9ac
 
     Returns:
         model: The trained model.
     """
+<<<<<<< HEAD
     if create_model:
         if model_name == 'PPO':
             if vec_env is None:
                 raise ValueError("vec_env is required for PPO.")
+=======
+    # Dynamically create the model if required
+    if create_model:
+        if vec_env is None:
+            raise ValueError("vec_env is required for RL models.")
+
+        if model_name == 'PPO':
+>>>>>>> b1d83806e07a226e858795dc16f6af58e4f9a9ac
             model = PPO(
                 "MlpPolicy",
                 vec_env,
@@ -953,8 +995,11 @@ def train_model(
                 verbose=1
             )
         elif model_name == 'A2C':
+<<<<<<< HEAD
             if vec_env is None:
                 raise ValueError("vec_env is required for A2C.")
+=======
+>>>>>>> b1d83806e07a226e858795dc16f6af58e4f9a9ac
             model = A2C(
                 "MlpPolicy",
                 vec_env,
@@ -964,8 +1009,11 @@ def train_model(
                 verbose=1
             )
         elif model_name == 'DQN':
+<<<<<<< HEAD
             if vec_env is None:
                 raise ValueError("vec_env is required for DQN.")
+=======
+>>>>>>> b1d83806e07a226e858795dc16f6af58e4f9a9ac
             model = DQN(
                 "MlpPolicy",
                 vec_env,
@@ -973,6 +1021,7 @@ def train_model(
                 batch_size=batch_size,
                 verbose=1
             )
+<<<<<<< HEAD
         elif model_name == 'BC':
             if env is None or transitions is None:
                 raise ValueError("env and transitions are required for BC.")
@@ -985,10 +1034,15 @@ def train_model(
             )
         else:
             raise ValueError(f"Unsupported model: {model_name}")
+=======
+        else:
+            raise ValueError(f"Unsupported RL model: {model_name}")
+>>>>>>> b1d83806e07a226e858795dc16f6af58e4f9a9ac
 
     if model is None:
         raise ValueError("Model instance must be provided or create_model must be True.")
 
+<<<<<<< HEAD
     if model_name in ['PPO', 'A2C', 'DQN']:
         # Train RL models
         for i in range(iterations):
@@ -1122,3 +1176,26 @@ def collect_expert_data(env, seed=SEED):
     )
 
     return transitions, expert_actions
+=======
+    # Train the model
+    for i in range(iterations):
+        log_dir = f"{log_base_dir}/{model_name}/{i}_run/"
+        if i == 0:
+            model.learn(
+                total_timesteps=train_timesteps,
+                progress_bar=False,
+                log_interval=log_frec,
+                tb_log_name=f"{i}_run",
+                reset_num_timesteps=True
+            )
+        else:
+            model.learn(
+                total_timesteps=train_timesteps,
+                progress_bar=False,
+                log_interval=log_frec,
+                tb_log_name=f"{i}_run",
+                reset_num_timesteps=False
+            )
+
+    return model
+>>>>>>> b1d83806e07a226e858795dc16f6af58e4f9a9ac
