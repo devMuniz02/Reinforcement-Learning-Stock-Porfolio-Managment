@@ -774,7 +774,23 @@ def evaluate_buy(venv, SEED):
     venv.render(mode='total')
     return buy_actions, buy_returns, total_reward
 
-def evaluate_model(venv, trainer, name, SEED, has_policy=True):
+def evaluate_model(venv, trainer, name, SEED, has_policy=False):
+    """
+    Evaluates the provided model or trainer in a given environment.
+
+    Args:
+        venv: The environment to evaluate the model on. Must support `reset`, `step`, and `render` methods.
+        trainer: The model or agent used for evaluation. If `has_policy` is True, it must have a `policy.predict` method.
+        name (str): A descriptive name for the evaluation (e.g., for logging or debugging purposes).
+        SEED (int): The random seed to ensure reproducibility of environment behavior.
+        has_policy (bool, optional): Indicates whether the `trainer` has a `policy` attribute. Defaults to False.
+
+    Returns:
+        tuple:
+            - model_actions (list): A list of actions taken by the model during evaluation.
+            - returns (any): The cumulative return of the environment, as provided by `venv.returns()`.
+            - total_reward (float): The total reward accumulated during the evaluation.
+    """
     print(name)
     i = 0
     model_actions = []
@@ -842,3 +858,129 @@ def evaluate_all(name, model, has_policy, SEED):
     evaluate_best(test_venv,expert_actions_test,SEED)
     evaluate_buy(test_venv,SEED)
     evaluate_model(test_venv,name=name,has_policy=has_policy,SEED=SEED,trainer=model)
+    
+def create_training_env(history_length, reward_type, start_date, end_date, stocks, n_envs):
+    """
+    Create a vectorized environment for training.
+    """
+    env, env_fn, date_interval, scalers, df, df_unscaled = create_env(
+        history_length, reward_type, start_date, end_date, stocks, True, []
+    )
+    check_env(env)
+    vec_env = make_vec_env(env_fn, n_envs=n_envs, vec_env_cls=SubprocVecEnv)
+    return env, vec_env
+
+def create_evaluation_env(history_length, reward_type, start_date, end_date, stocks, n_envs=1):
+    """
+    Create a vectorized environment for evaluation.
+    """
+    env, env_fn, _, _, _, _ = create_env(history_length, reward_type, start_date, end_date, stocks, True, [])
+    check_env(env)
+    vec_env = make_vec_env(env_fn, n_envs=n_envs, vec_env_cls=SubprocVecEnv)
+    return env, vec_env
+
+def save_model(model, folder_path, file_name="best_model"):
+    """
+    Save the trained model to the specified folder.
+    """
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+    model.save(os.path.join(folder_path, file_name))
+    
+from stable_baselines3 import PPO, A2C, DQN
+from stable_baselines3.common.callbacks import EvalCallback
+from stable_baselines3.common.env_util import make_vec_env
+
+def train_model(
+    model_name,
+    model,
+    create_model,
+    vec_env,
+    iterations,
+    train_timesteps,
+    log_frec,
+    log_base_dir,
+    n_steps,
+    batch_size,
+    learning_rate,
+    ent_coef
+):
+    """
+    Train PPO, A2C, or DQN models with optional model creation.
+
+    Args:
+        model_name (str): The name of the RL model ('PPO', 'A2C', or 'DQN').
+        model: A pre-initialized RL model instance (optional if create_model is True).
+        create_model (bool): Whether to dynamically create the RL model.
+        vec_env: The vectorized training environment.
+        iterations (int): Number of training iterations.
+        train_timesteps (int): Number of timesteps to train in each iteration.
+        log_frec (int): Logging frequency for training.
+        log_base_dir (str): Base directory for TensorBoard logs.
+        n_steps (int): Number of steps for RL models (default: 10).
+        batch_size (int): Batch size for RL models (default: 50).
+        learning_rate (float): Learning rate for RL models (default: 0.001).
+        ent_coef (float): Entropy coefficient for RL models (default: 0.10).
+
+    Returns:
+        model: The trained model.
+    """
+    # Dynamically create the model if required
+    if create_model:
+        if vec_env is None:
+            raise ValueError("vec_env is required for RL models.")
+
+        if model_name == 'PPO':
+            model = PPO(
+                "MlpPolicy",
+                vec_env,
+                learning_rate=learning_rate,
+                n_steps=n_steps,
+                batch_size=batch_size,
+                ent_coef=ent_coef,
+                verbose=1
+            )
+        elif model_name == 'A2C':
+            model = A2C(
+                "MlpPolicy",
+                vec_env,
+                learning_rate=learning_rate,
+                n_steps=n_steps,
+                ent_coef=ent_coef,
+                verbose=1
+            )
+        elif model_name == 'DQN':
+            model = DQN(
+                "MlpPolicy",
+                vec_env,
+                learning_rate=learning_rate,
+                batch_size=batch_size,
+                verbose=1
+            )
+        else:
+            raise ValueError(f"Unsupported RL model: {model_name}")
+
+    if model is None:
+        raise ValueError("Model instance must be provided or create_model must be True.")
+
+    # Train the model
+    for i in range(iterations):
+        log_dir = f"{log_base_dir}/{model_name}/{i}_run/"
+        if i == 0:
+            model.learn(
+                total_timesteps=train_timesteps,
+                progress_bar=False,
+                log_interval=log_frec,
+                tb_log_name=f"{i}_run",
+                reset_num_timesteps=True
+            )
+        else:
+            model.learn(
+                total_timesteps=train_timesteps,
+                progress_bar=False,
+                log_interval=log_frec,
+                tb_log_name=f"{i}_run",
+                reset_num_timesteps=False
+            )
+
+    return model
