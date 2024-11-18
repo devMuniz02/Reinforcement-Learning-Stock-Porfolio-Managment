@@ -895,6 +895,10 @@ from stable_baselines3 import PPO, A2C, DQN
 from imitation.algorithms.bc import BC
 from stable_baselines3.common.evaluation import evaluate_policy
 
+from stable_baselines3 import PPO, A2C, DQN
+from imitation.algorithms.bc import BC
+from stable_baselines3.common.evaluation import evaluate_policy
+
 def train_model(
     model_name,
     model=None,
@@ -943,13 +947,6 @@ def train_model(
         if model_name == 'PPO':
             if vec_env is None:
                 raise ValueError("vec_env is required for PPO.")
-
-    # Dynamically create the model if required
-    if create_model:
-        if vec_env is None:
-            raise ValueError("vec_env is required for RL models.")
-
-        if model_name == 'PPO':
             model = PPO(
                 "MlpPolicy",
                 vec_env,
@@ -980,7 +977,6 @@ def train_model(
                 batch_size=batch_size,
                 verbose=1
             )
-<<<<<<< HEAD
         elif model_name == 'BC':
             if env is None or transitions is None:
                 raise ValueError("env and transitions are required for BC.")
@@ -993,15 +989,10 @@ def train_model(
             )
         else:
             raise ValueError(f"Unsupported model: {model_name}")
-=======
-        else:
-            raise ValueError(f"Unsupported RL model: {model_name}")
->>>>>>> b1d83806e07a226e858795dc16f6af58e4f9a9ac
 
     if model is None:
         raise ValueError("Model instance must be provided or create_model must be True.")
 
-<<<<<<< HEAD
     if model_name in ['PPO', 'A2C', 'DQN']:
         # Train RL models
         for i in range(iterations):
@@ -1048,7 +1039,7 @@ def train_model(
 
     return model
 
-def collect_expert_data(env, seed=SEED):
+def collect_expert_data(env, seed):
     """
     Collect expert trajectories and generate transitions for Behavior Cloning (BC).
 
@@ -1135,26 +1126,3 @@ def collect_expert_data(env, seed=SEED):
     )
 
     return transitions, expert_actions
-=======
-    # Train the model
-    for i in range(iterations):
-        log_dir = f"{log_base_dir}/{model_name}/{i}_run/"
-        if i == 0:
-            model.learn(
-                total_timesteps=train_timesteps,
-                progress_bar=False,
-                log_interval=log_frec,
-                tb_log_name=f"{i}_run",
-                reset_num_timesteps=True
-            )
-        else:
-            model.learn(
-                total_timesteps=train_timesteps,
-                progress_bar=False,
-                log_interval=log_frec,
-                tb_log_name=f"{i}_run",
-                reset_num_timesteps=False
-            )
-
-    return model
->>>>>>> b1d83806e07a226e858795dc16f6af58e4f9a9ac
