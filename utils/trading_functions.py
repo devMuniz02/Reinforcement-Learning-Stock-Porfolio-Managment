@@ -891,7 +891,6 @@ from stable_baselines3 import PPO, A2C, DQN
 from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.env_util import make_vec_env
 
-<<<<<<< HEAD
 from stable_baselines3 import PPO, A2C, DQN
 from imitation.algorithms.bc import BC
 from stable_baselines3.common.evaluation import evaluate_policy
@@ -936,55 +935,21 @@ def train_model(
         seed (int): Random seed for reproducibility.
         bc_batches (int): Number of batches for BC training.
         bc_log_interval (int): Logging interval for BC.
-=======
-def train_model(
-    model_name,
-    model,
-    create_model,
-    vec_env,
-    iterations,
-    train_timesteps,
-    log_frec,
-    log_base_dir,
-    n_steps,
-    batch_size,
-    learning_rate,
-    ent_coef
-):
-    """
-    Train PPO, A2C, or DQN models with optional model creation.
-
-    Args:
-        model_name (str): The name of the RL model ('PPO', 'A2C', or 'DQN').
-        model: A pre-initialized RL model instance (optional if create_model is True).
-        create_model (bool): Whether to dynamically create the RL model.
-        vec_env: The vectorized training environment.
-        iterations (int): Number of training iterations.
-        train_timesteps (int): Number of timesteps to train in each iteration.
-        log_frec (int): Logging frequency for training.
-        log_base_dir (str): Base directory for TensorBoard logs.
-        n_steps (int): Number of steps for RL models (default: 10).
-        batch_size (int): Batch size for RL models (default: 50).
-        learning_rate (float): Learning rate for RL models (default: 0.001).
-        ent_coef (float): Entropy coefficient for RL models (default: 0.10).
->>>>>>> b1d83806e07a226e858795dc16f6af58e4f9a9ac
 
     Returns:
         model: The trained model.
     """
-<<<<<<< HEAD
     if create_model:
         if model_name == 'PPO':
             if vec_env is None:
                 raise ValueError("vec_env is required for PPO.")
-=======
+
     # Dynamically create the model if required
     if create_model:
         if vec_env is None:
             raise ValueError("vec_env is required for RL models.")
 
         if model_name == 'PPO':
->>>>>>> b1d83806e07a226e858795dc16f6af58e4f9a9ac
             model = PPO(
                 "MlpPolicy",
                 vec_env,
@@ -995,11 +960,8 @@ def train_model(
                 verbose=1
             )
         elif model_name == 'A2C':
-<<<<<<< HEAD
             if vec_env is None:
                 raise ValueError("vec_env is required for A2C.")
-=======
->>>>>>> b1d83806e07a226e858795dc16f6af58e4f9a9ac
             model = A2C(
                 "MlpPolicy",
                 vec_env,
@@ -1009,11 +971,8 @@ def train_model(
                 verbose=1
             )
         elif model_name == 'DQN':
-<<<<<<< HEAD
             if vec_env is None:
                 raise ValueError("vec_env is required for DQN.")
-=======
->>>>>>> b1d83806e07a226e858795dc16f6af58e4f9a9ac
             model = DQN(
                 "MlpPolicy",
                 vec_env,
