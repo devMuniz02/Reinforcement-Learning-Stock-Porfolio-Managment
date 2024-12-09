@@ -49,7 +49,7 @@ from stable_baselines3.common.evaluation import evaluate_policy
 from sb3_contrib import ARS, MaskablePPO, RecurrentPPO, QRDQN, TRPO
 
 # Imitation Learning
-from imitation.algorithms import bc
+from imitation.algorithms.bc import BC #from imitation.algorithms import bc
 from imitation.testing.reward_improvement import is_significant_reward_improvement
 from imitation.data.types import Transitions
 
@@ -893,26 +893,32 @@ def save_model(model, folder_path, file_name="best_model"):
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
     model.save(os.path.join(folder_path, file_name))
-    
-from stable_baselines3 import PPO, A2C, DQN
-from stable_baselines3.common.callbacks import EvalCallback
-from stable_baselines3.common.env_util import make_vec_env
 
-from stable_baselines3 import PPO, A2C, DQN
-from imitation.algorithms.bc import BC
-from stable_baselines3.common.evaluation import evaluate_policy
+from sb3_contrib import ARS, MaskablePPO, RecurrentPPO, QRDQN, TRPO
+from stable_baselines3 import A2C, DDPG, DQN, HER, PPO, SAC, TD3
 
-from stable_baselines3 import PPO, A2C, DQN
+from stable_baselines3 import A2C, DQN, HER, PPO
+from sb3_contrib import ARS, MaskablePPO, RecurrentPPO, QRDQN, TRPO
+
+from stable_baselines3 import A2C, DDPG, DQN, HER, PPO, SAC, TD3
+from sb3_contrib import ARS, MaskablePPO, RecurrentPPO, QRDQN, TRPO
 from imitation.algorithms.bc import BC
+from stable_baselines3.ppo import MlpPolicy
 from stable_baselines3.common.evaluation import evaluate_policy
+from imitation.algorithms.adversarial.gail import GAIL
+from imitation.algorithms.adversarial.airl import AIRL
+from imitation.rewards.reward_nets import BasicRewardNet
+from imitation.util.networks import RunningNorm
+from imitation.algorithms import sqil
+
 
 def train_model(
     model_name,
     model=None,
     create_model=False,
     vec_env=None,
-    env=None,  # Required for BC
-    transitions=None,  # Required for BC
+    env=None,  # Required for HER, BC, GAIL, AIRL
+    transitions=None,  # Required for SQIL, BC, GAIL, AIRL
     iterations=1,
     train_timesteps=10_000,
     log_frec=10,
@@ -922,132 +928,291 @@ def train_model(
     learning_rate=0.001,
     ent_coef=0.10,
     seed=1,
-    bc_batches=10_000,
-    bc_log_interval=1_000
+    eval_episodes=100,
 ):
     """
-    Train PPO, A2C, DQN, or BC models.
+    Train RL models (e.g., PPO, A2C), HER, Behavioral Cloning (BC), SQIL, GAIL, or AIRL.
 
     Args:
-        model_name (str): The name of the model ('PPO', 'A2C', 'DQN', or 'BC').
-        model: A pre-initialized model instance (optional if create_model is True).
+        model_name (str): Name of the model to train. Supported:
+            - RL Models: 'PPO', 'A2C', 'DQN', 'DDPG', 'SAC', 'TD3', 'TRPO', 'QRDQN', 'ARS', 'MaskablePPO', 'RecurrentPPO'.
+            - HER: Requires single env and RL algo.
+            - Imitation Learning: 'BC', 'SQIL', 'GAIL', 'AIRL'.
+        model: Predefined model instance (optional if create_model=True).
         create_model (bool): Whether to dynamically create the model.
-        vec_env: The vectorized training environment (required for PPO, A2C, DQN).
-        env: The single environment (required for BC).
-        transitions: Expert data for Behavior Cloning (required for BC).
-        iterations (int): Number of iterations for training RL models.
-        train_timesteps (int): Total timesteps for training RL models.
+        vec_env: Vectorized environment for RL models.
+        env: Single environment for HER and imitation learning models.
+        transitions: Expert transitions (required for SQIL, BC, GAIL, AIRL).
+        iterations (int): Number of training iterations.
+        train_timesteps (int): Total timesteps per training iteration.
         log_frec (int): Logging frequency.
-        log_base_dir (str): Base directory for TensorBoard logs.
-        n_steps (int): Number of steps for RL models.
-        batch_size (int): Batch size for RL models.
-        learning_rate (float): Learning rate for RL models.
+        log_base_dir (str): Directory for TensorBoard logs.
+        n_steps (int): Number of steps for on-policy models.
+        batch_size (int): Batch size for training.
+        learning_rate (float): Learning rate for training.
         ent_coef (float): Entropy coefficient for RL models.
         seed (int): Random seed for reproducibility.
-        bc_batches (int): Number of batches for BC training.
-        bc_log_interval (int): Logging interval for BC.
+        eval_episodes (int): Number of evaluation episodes.
 
     Returns:
-        model: The trained model.
+        model: Trained model instance.
     """
-    if create_model:
-        if model_name == 'PPO':
-            if vec_env is None:
-                raise ValueError("vec_env is required for PPO.")
-            model = PPO(
-                "MlpPolicy",
-                vec_env,
-                learning_rate=learning_rate,
-                n_steps=n_steps,
-                batch_size=batch_size,
-                ent_coef=ent_coef,
-                tensorboard_log=log_base_dir,
-                verbose=1
-            )
-        elif model_name == 'A2C':
-            if vec_env is None:
-                raise ValueError("vec_env is required for A2C.")
-            model = A2C(
-                "MlpPolicy",
-                vec_env,
-                learning_rate=learning_rate,
-                n_steps=n_steps,
-                ent_coef=ent_coef,
-                tensorboard_log=log_base_dir,
-                verbose=1
-            )
-        elif model_name == 'DQN':
-            if vec_env is None:
-                raise ValueError("vec_env is required for DQN.")
-            model = DQN(
-                "MlpPolicy",
-                vec_env,
-                learning_rate=learning_rate,
-                batch_size=batch_size,
-                tensorboard_log=log_base_dir,
-                verbose=1
-            )
-        elif model_name == 'BC':
-            if env is None or transitions is None:
-                raise ValueError("env and transitions are required for BC.")
-            model = BC(
-                observation_space=env.observation_space,
-                action_space=env.action_space,
-                demonstrations=transitions,
-                rng=np.random.default_rng(seed),
-                batch_size=batch_size
-            )
-        else:
-            raise ValueError(f"Unsupported model: {model_name}")
+    os.makedirs(log_base_dir, exist_ok=True)
 
-    if model is None:
-        raise ValueError("Model instance must be provided or create_model must be True.")
+    # RL Models
+    if model_name in [
+        "PPO",
+        "A2C",
+        "DQN",
+        "DDPG",
+        "SAC",
+        "TD3",
+        "TRPO",
+        "QRDQN",
+        "MaskablePPO",
+        "RecurrentPPO",
+        "ARS",
+    ]:
+        if vec_env is None:
+            raise ValueError(f"{model_name} requires `vec_env`.")
+        if create_model:
+            if model_name == "PPO":
+                model = PPO(
+                    "MlpPolicy",
+                    vec_env,
+                    learning_rate=learning_rate,
+                    n_steps=n_steps,
+                    batch_size=batch_size,
+                    ent_coef=ent_coef,
+                    tensorboard_log=log_base_dir,
+                    verbose=1,
+                    seed=seed,
+                )
+            elif model_name == "A2C":
+                model = A2C(
+                    "MlpPolicy",
+                    vec_env,
+                    learning_rate=learning_rate,
+                    n_steps=n_steps,
+                    ent_coef=ent_coef,
+                    tensorboard_log=log_base_dir,
+                    verbose=1,
+                    seed=seed,
+                )
+            elif model_name == "DQN":
+                model = DQN(
+                    "MlpPolicy",
+                    vec_env,
+                    learning_rate=learning_rate,
+                    buffer_size=50000,
+                    batch_size=batch_size,
+                    tensorboard_log=log_base_dir,
+                    verbose=1,
+                    seed=seed,
+                )
+            elif model_name == "DDPG":
+                model = DDPG(
+                    "MlpPolicy",
+                    vec_env,
+                    learning_rate=learning_rate,
+                    buffer_size=50000,
+                    batch_size=batch_size,
+                    tensorboard_log=log_base_dir,
+                    verbose=1,
+                    seed=seed,
+                )
+            elif model_name == "SAC":
+                model = SAC(
+                    "MlpPolicy",
+                    vec_env,
+                    learning_rate=learning_rate,
+                    buffer_size=50000,
+                    batch_size=batch_size,
+                    tensorboard_log=log_base_dir,
+                    verbose=1,
+                    seed=seed,
+                )
+            elif model_name == "TD3":
+                model = TD3(
+                    "MlpPolicy",
+                    vec_env,
+                    learning_rate=learning_rate,
+                    buffer_size=50000,
+                    batch_size=batch_size,
+                    tensorboard_log=log_base_dir,
+                    verbose=1,
+                    seed=seed,
+                )
+            elif model_name == "TRPO":
+                model = TRPO(
+                    "MlpPolicy",
+                    vec_env,
+                    learning_rate=learning_rate,
+                    tensorboard_log=log_base_dir,
+                    verbose=1,
+                    seed=seed,
+                )
+            elif model_name == "QRDQN":
+                model = QRDQN(
+                    "MlpPolicy",
+                    vec_env,
+                    learning_rate=learning_rate,
+                    buffer_size=50000,
+                    batch_size=batch_size,
+                    tensorboard_log=log_base_dir,
+                    verbose=1,
+                    seed=seed,
+                )
+            elif model_name == "MaskablePPO":
+                model = MaskablePPO(
+                    "MlpPolicy",
+                    vec_env,
+                    learning_rate=learning_rate,
+                    n_steps=n_steps,
+                    batch_size=batch_size,
+                    ent_coef=ent_coef,
+                    tensorboard_log=log_base_dir,
+                    verbose=1,
+                    seed=seed,
+                )
+            elif model_name == "RecurrentPPO":
+                model = RecurrentPPO(
+                    "MlpLstmPolicy",
+                    vec_env,
+                    learning_rate=learning_rate,
+                    n_steps=n_steps,
+                    batch_size=batch_size,
+                    ent_coef=ent_coef,
+                    tensorboard_log=log_base_dir,
+                    verbose=1,
+                    seed=seed,
+                )
+            elif model_name == "ARS":
+                model = ARS(
+                    "MlpPolicy",
+                    vec_env,
+                    learning_rate=learning_rate,
+                    zero_policy=False,
+                    tensorboard_log=log_base_dir,
+                    verbose=1,
+                    seed=seed,
+                )
 
-    if model_name in ['PPO', 'A2C', 'DQN']:
-        # Train RL models
         for i in range(iterations):
-            log_dir = f"{log_base_dir}/{model_name}/{i}_run/"
-            if i == 0:
-                model.learn(
-                    total_timesteps=train_timesteps,
-                    progress_bar=False,
-                    log_interval=log_frec,
-                    tb_log_name=f"{i}_run",
-                    reset_num_timesteps=True
-                )
-            else:
-                model.learn(
-                    total_timesteps=train_timesteps,
-                    progress_bar=False,
-                    log_interval=log_frec,
-                    tb_log_name=f"{i}_run",
-                    reset_num_timesteps=False
-                )
-    elif model_name == 'BC':
-        # Evaluate BC policy before training
+            model.learn(
+                total_timesteps=train_timesteps,
+                progress_bar=False,
+                log_interval=log_frec,
+                tb_log_name=f"RL_{i}_run",
+                reset_num_timesteps=(i == 0),
+            )
+        return model
+
+    # SQIL Model
+    elif model_name == "SQIL":
+        if vec_env is None or transitions is None:
+            raise ValueError("SQIL requires `vec_env` and `transitions`.")
+        model = sqil.SQIL(
+            venv=vec_env,
+            demonstrations=transitions,
+            policy="MlpPolicy",
+        )
+        vec_env.reset(seed)
+        mean_reward, std_reward = evaluate_policy(model.policy, vec_env, eval_episodes)
+        print(f"SQIL rewards before training: {mean_reward:.2f} ± {std_reward:.2f}")
+        model.train(total_timesteps=train_timesteps)
+        mean_reward, std_reward = evaluate_policy(model.policy, vec_env, eval_episodes)
+        print(f"SQIL rewards after training: {mean_reward:.2f} ± {std_reward:.2f}")
+        return model
+
+    # Behavioral Cloning (BC)
+    elif model_name == "BC":
+        if env is None or transitions is None:
+            raise ValueError("BC requires `env` and `transitions`.")
+        model = BC(
+            observation_space=env.observation_space,
+            action_space=env.action_space,
+            demonstrations=transitions,
+            rng=np.random.default_rng(seed),
+            batch_size=batch_size,
+        )
         env.reset(seed)
-        mean_reward_bc_before, std_reward_bc_before = evaluate_policy(
-            model.policy, env, n_eval_episodes=1, return_episode_rewards=False, deterministic=True
-        )
-        print("BC Learner rewards before training:")
-        print(f"Mean reward: {mean_reward_bc_before} +/- {std_reward_bc_before:.2f}")
+        mean_reward, std_reward = evaluate_policy(model.policy, env, eval_episodes)
+        print(f"BC rewards before training: {mean_reward:.2f} ± {std_reward:.2f}")
+        model.train(n_batches=1_000, progress_bar=False)
+        mean_reward, std_reward = evaluate_policy(model.policy, env, eval_episodes)
+        print(f"BC rewards after training: {mean_reward:.2f} ± {std_reward:.2f}")
+        return model
 
-        # Train BC model
-        model.train(
-            n_batches=bc_batches,
-            log_interval=bc_log_interval,
-            progress_bar=False
+    # GAIL Model
+    elif model_name == "GAIL":
+        if vec_env is None or transitions is None:
+            raise ValueError("GAIL requires `vec_env` and `transitions`.")
+        gen_algo = PPO(
+            policy="MlpPolicy",
+            env=vec_env,
+            batch_size=batch_size,
+            learning_rate=learning_rate,
+            ent_coef=ent_coef,
+            verbose=1,
+            seed=seed,
         )
-
-        # Evaluate BC policy after training
-        env.reset(seed)
-        mean_reward_bc_after, std_reward_bc_after = evaluate_policy(
-            model.policy, env, n_eval_episodes=1, return_episode_rewards=False, deterministic=True
+        reward_net = BasicRewardNet(
+            observation_space=vec_env.observation_space,
+            action_space=vec_env.action_space,
+            normalize_input_layer=RunningNorm,
         )
-        print("BC Learner rewards after training:")
-        print(f"Mean reward: {mean_reward_bc_after} +/- {std_reward_bc_after:.2f}")
+        model = GAIL(
+            demonstrations=transitions,
+            venv=vec_env,
+            gen_algo=gen_algo,
+            reward_net=reward_net,
+            allow_variable_horizon=True,
+        )
+        vec_env.reset(seed)
+        mean_reward, std_reward = evaluate_policy(gen_algo, vec_env, eval_episodes)
+        print(f"GAIL rewards before training: {mean_reward:.2f} ± {std_reward:.2f}")
+        model.train(total_timesteps=train_timesteps)
+        mean_reward, std_reward = evaluate_policy(gen_algo, vec_env, eval_episodes)
+        print(f"GAIL rewards after training: {mean_reward:.2f} ± {std_reward:.2f}")
+        return model
 
-    return model
+    # AIRL Model
+    elif model_name == "AIRL":
+        if vec_env is None or transitions is None:
+            raise ValueError("AIRL requires `vec_env` and `transitions`.")
+        gen_algo = PPO(
+            policy="MlpPolicy",
+            env=vec_env,
+            batch_size=batch_size,
+            learning_rate=learning_rate,
+            ent_coef=ent_coef,
+            verbose=1,
+            seed=seed,
+        )
+        reward_net = BasicRewardNet(
+            observation_space=vec_env.observation_space,
+            action_space=vec_env.action_space,
+            normalize_input_layer=RunningNorm,
+        )
+        model = AIRL(
+            demonstrations=transitions,
+            venv=vec_env,
+            gen_algo=gen_algo,
+            reward_net=reward_net,
+            allow_variable_horizon=True,
+        )
+        vec_env.reset(seed)
+        mean_reward, std_reward = evaluate_policy(gen_algo, vec_env, eval_episodes)
+        print(f"AIRL rewards before training: {mean_reward:.2f} ± {std_reward:.2f}")
+        model.train(total_timesteps=train_timesteps)
+        mean_reward, std_reward = evaluate_policy(gen_algo, vec_env, eval_episodes)
+        print(f"AIRL rewards after training: {mean_reward:.2f} ± {std_reward:.2f}")
+        return model
+
+    else:
+        raise ValueError(f"Unsupported model name: {model_name}")
+
 
 def collect_expert_data(env, seed):
     """
