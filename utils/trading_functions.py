@@ -109,7 +109,10 @@ def bin_reward_func(reward_temp):
 
 def lnr_reward_func(reward_temp):
     """Linear reward, simply returns reward_temp."""
-    return reward_temp
+    if reward_temp > 0:
+        return reward_temp
+    else:
+        return 100-(100*100/(100+reward_temp))
 
 def stp_reward_func(reward_temp):
     """Fixed reward increment by 1."""
@@ -457,7 +460,7 @@ class TradingEnvUniqueMultiple(gym.Env):
                     self.shares.append(0)
                     self.cash.append(cash_today)
                     self.portfolio.append(self.cash[-1] + self.shares[-1] * close_price)
-                    reward_temp = -100 * (next_close_price-close_price) / close_price #negative because is a loss if it goes up and you sold
+                    reward_temp = 0 #-100 * (next_close_price-close_price) / close_price #negative because is a loss if it goes up and you sold
                 else: # if you dont have shares
                     self.portfolio.append(self.portfolio[-1])
                     self.shares.append(self.shares[-1])
@@ -915,6 +918,7 @@ from imitation.algorithms import sqil
 def train_model(
     model_name,
     model=None,
+    callback = None,
     create_model=False,
     vec_env=None,
     env=None,  # Required for HER, BC, GAIL, AIRL
@@ -929,6 +933,7 @@ def train_model(
     ent_coef=0.10,
     seed=1,
     eval_episodes=100,
+    bc_batches = 1000
 ):
     """
     Train RL models (e.g., PPO, A2C), HER, Behavioral Cloning (BC), SQIL, GAIL, or AIRL.
@@ -985,8 +990,9 @@ def train_model(
                     batch_size=batch_size,
                     ent_coef=ent_coef,
                     tensorboard_log=log_base_dir,
-                    verbose=1,
+                    verbose=0,
                     seed=seed,
+                    policy_kwargs = dict(net_arch=dict(pi=[32, 32], vf=[32, 32]))
                 )
             elif model_name == "A2C":
                 model = A2C(
@@ -996,7 +1002,7 @@ def train_model(
                     n_steps=n_steps,
                     ent_coef=ent_coef,
                     tensorboard_log=log_base_dir,
-                    verbose=1,
+                    verbose=0,
                     seed=seed,
                 )
             elif model_name == "DQN":
@@ -1105,6 +1111,7 @@ def train_model(
                 log_interval=log_frec,
                 tb_log_name=f"RL_{i}_run",
                 reset_num_timesteps=(i == 0),
+                callback=callback
             )
         return model
 
@@ -1139,7 +1146,7 @@ def train_model(
         env.reset(seed)
         mean_reward, std_reward = evaluate_policy(model.policy, env, eval_episodes)
         print(f"BC rewards before training: {mean_reward:.2f} ± {std_reward:.2f}")
-        model.train(n_batches=1_000, progress_bar=False)
+        model.train(n_batches=bc_batches, progress_bar=False)
         mean_reward, std_reward = evaluate_policy(model.policy, env, eval_episodes)
         print(f"BC rewards after training: {mean_reward:.2f} ± {std_reward:.2f}")
         return model
