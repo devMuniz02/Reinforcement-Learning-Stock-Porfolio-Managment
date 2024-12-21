@@ -481,6 +481,8 @@ class TradingEnvUniqueMultiple(gym.Env):
 
         # Check if episode is done after a certain number of steps
         done = self.steps >= (self.TimeSize - self.history_length - 1) # -1 for extra day for next_close_price
+        if self.portfolio[-1] == 0:
+            done = True
         self.steps += 1
         #10 time size
         #5 history
@@ -720,7 +722,7 @@ def create_env(history_length, reward_type, start_date, end_date, stocks, scaler
         data[('10MA', ticker)] = data['Close'][ticker].rolling(window=10).mean()
         data[('15MA', ticker)] = data['Close'][ticker].rolling(window=15).mean()
         data[('20MA', ticker)] = data['Close'][ticker].rolling(window=20).mean()
-        data[('Daily_Return', ticker)] = data['Adj Close'][ticker].pct_change() * 100
+        data[('Daily_Return', ticker)] = data['Close'][ticker].pct_change() * 100
 
         # Adding technical indicators
         bollinger = ta.volatility.BollingerBands(close=data['Close'][ticker])
