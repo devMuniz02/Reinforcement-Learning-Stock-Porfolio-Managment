@@ -671,82 +671,113 @@ def create_env_unique(history_length, reward_type, start_date, end_date, stocks,
     #check_env(env)
 
     return env, env_fn, df.index, scalers, df, df_unscaled
-def create_env(history_length, reward_type, start_date, end_date, stocks, scaler, scalers):
-    df = []
-    df_unscaled = []
+
+def create_env(history_length, reward_type, start_date, end_date, stocks, scaler=None, scalers=None):
+    """
+    Creates a trading environment using stock data and technical indicators.
+
+    Parameters:
+        history_length (int): Length of history to use for state representation.
+        reward_type (str): Type of reward function to use.
+        start_date (str): Start date for stock data in 'YYYY-MM-DD' format.
+        end_date (str): End date for stock data in 'YYYY-MM-DD' format.
+        stocks (list): List of stock tickers to include.
+        scaler (bool): Whether to use a scaler (default: None).
+        scalers (list): List of scalers (default: None).
+
+    Returns:
+        env: The trading environment.
+        env_fn: Function to instantiate the environment.
+        date_interval: Number of trading days in the data.
+        scalers: List of scalers used.
+        df: Processed DataFrame with all stock data.
+        df_unscaled: Unscaled version of the DataFrame.
+    """
     interval = '1d'
-    num_stocks = len(stocks)
     add_date = False
 
+    # Validate and adjust start_date to ensure sufficient data points
     while True:
         try:
             date_interval = yf.download(stocks[0], start=start_date, end=end_date, interval=interval, progress=False).shape[0]
-            if date_interval < 27:
+            if date_interval < 27:  # If data is insufficient, adjust the start_date
                 start_date = (datetime.datetime.strptime(start_date, '%Y-%m-%d') - datetime.timedelta(days=30)).strftime('%Y-%m-%d')
-                add_date = True 
-            break
+                add_date = True
+            else:
+                break
         except Exception as e:
-            print("An error occurred:", e)
+            print(f"An error occurred while validating dates: {e}")
             print("Retrying...")
             time.sleep(5)
-      
+
+    # Initialize scalers if not provided
     if scalers is None:
         scalers = []
-    """while True:
-        try:
-            # Fetch FRED data
-            CPI = fred.get_series('MEDCPIM158SFRBCLE', observation_start=start_date)
-            M30US = fred.get_series('MORTGAGE30US', observation_start=start_date)
-            UNRA = fred.get_series('UNRATE', observation_start=start_date)
-            SP500 = fred.get_series('SP500', observation_start=start_date)
-            NEWH = fred.get_series('HOUST', observation_start=start_date)
-            NASDAQ = fred.get_series('NASDAQCOM', observation_start=start_date)
-            CARSA = fred.get_series('TOTALSA', observation_start=start_date)
 
-            fred_df = pd.concat([SP500, CPI, M30US, UNRA, NEWH, NASDAQ, CARSA], axis=1)
-            fred_df.columns = ['SP500', 'CPI', 'M30US', 'UNRA', 'NEWH', 'NASDAQ', 'CARSA']
+    # Download data for all stocks
+    try:
+        data = yf.download(stocks, start=start_date, end=end_date, interval=interval, progress=False, group_by='ticker')
+    except Exception as e:
+        print(f"Failed to fetch stock data: {e}")
+        return None, None, None, scalers, None, None
 
-            fred_df = fred_df.bfill()
-            fred_df = fred_df.ffill()
-        except Exception as e:
-            print("An error occurred:", e)
-            print("Retrying...")
-            time.sleep(15)"""
+    # Initialize a list to hold processed DataFrames
+    processed_data = []
 
-    data = yf.download(stocks, start=start_date, end=end_date, progress=False)
-    
-    # Processing each ticker individually
+    # Process each stock's data
     for ticker in stocks:
-        data[('week_day_number', ticker)] = data['Close'][ticker].index.weekday + 1
-        data[('5MA', ticker)] = data['Close'][ticker].rolling(window=5).mean()
-        data[('10MA', ticker)] = data['Close'][ticker].rolling(window=10).mean()
-        data[('15MA', ticker)] = data['Close'][ticker].rolling(window=15).mean()
-        data[('20MA', ticker)] = data['Close'][ticker].rolling(window=20).mean()
-        data[('Daily_Return', ticker)] = data['Close'][ticker].pct_change() * 100
+        if ticker not in data or data[ticker].empty:
+            print(f"No data available for {ticker}, skipping...")
+            continue
+        
+        stock_data = data[ticker].copy()
 
-        # Adding technical indicators
-        bollinger = ta.volatility.BollingerBands(close=data['Close'][ticker])
-        data[('Bollinger_High', ticker)] = bollinger.bollinger_hband()
-        data[('Bollinger_Low', ticker)] = bollinger.bollinger_lband()
-        data[('RSI', ticker)] = ta.momentum.RSIIndicator(close=data['Close'][ticker]).rsi()
-        macd = ta.trend.MACD(close=data['Close'][ticker])
-        data[('MACD', ticker)] = macd.macd()
-        data[('MACD_Signal', ticker)] = macd.macd_signal()
-        data[('12EMA', ticker)] = ta.trend.EMAIndicator(close=data['Close'][ticker], window=12).ema_indicator()
-        data[('26EMA', ticker)] = ta.trend.EMAIndicator(close=data['Close'][ticker], window=26).ema_indicator()
-        data[('OBV', ticker)] = ta.volume.OnBalanceVolumeIndicator(close=data['Close'][ticker], volume=data['Volume'][ticker]).on_balance_volume()
+        # Add technical indicators
+        stock_data['week_day_number'] = stock_data.index.weekday + 1
+        stock_data['5MA'] = stock_data['Close'].rolling(window=5).mean()
+        stock_data['10MA'] = stock_data['Close'].rolling(window=10).mean()
+        stock_data['15MA'] = stock_data['Close'].rolling(window=15).mean()
+        stock_data['20MA'] = stock_data['Close'].rolling(window=20).mean()
+        stock_data['Daily_Return'] = stock_data['Close'].pct_change() * 100
 
-    # Backward fill the NaN values after all calculations
-    data = data.bfill().ffill() 
-    df = data
-    df_unscaled = data
+        # Adding more technical indicators using TA library
+        bollinger = ta.volatility.BollingerBands(close=stock_data['Close'])
+        stock_data['Bollinger_High'] = bollinger.bollinger_hband()
+        stock_data['Bollinger_Low'] = bollinger.bollinger_lband()
+        stock_data['RSI'] = ta.momentum.RSIIndicator(close=stock_data['Close']).rsi()
+        macd = ta.trend.MACD(close=stock_data['Close'])
+        stock_data['MACD'] = macd.macd()
+        stock_data['MACD_Signal'] = macd.macd_signal()
+        stock_data['12EMA'] = ta.trend.EMAIndicator(close=stock_data['Close'], window=12).ema_indicator()
+        stock_data['26EMA'] = ta.trend.EMAIndicator(close=stock_data['Close'], window=26).ema_indicator()
+        stock_data['OBV'] = ta.volume.OnBalanceVolumeIndicator(
+            close=stock_data['Close'], volume=stock_data['Volume']
+        ).on_balance_volume()
+
+        # Backward and forward fill missing values
+        stock_data = stock_data.bfill().ffill()
+
+        # Add MultiIndex for the stock
+        stock_data.columns = pd.MultiIndex.from_product([[ticker], stock_data.columns], names=['Ticker', 'Price'])
+
+        # Append processed data
+        processed_data.append(stock_data)
+
+    # Combine all stocks' processed data into a single DataFrame with MultiIndex
+    df = pd.concat(processed_data, axis=1)
+    df_unscaled = df.copy()
+
+    # Define the environment creation function
     def env_fn():
         return TradingEnvUniqueMultiple(df_unscaled, history_length, reward_type)
-    
+
+    # Instantiate the environment
     env = TradingEnvUniqueMultiple(df_unscaled, history_length, reward_type)
-    #check_env(env)
-    
+
+    # Return results
     return env, env_fn, date_interval, scalers, df, df_unscaled
+
+
 def evaluate_best(venv, expert_actions, SEED):
     print("Best")
     i = 0
