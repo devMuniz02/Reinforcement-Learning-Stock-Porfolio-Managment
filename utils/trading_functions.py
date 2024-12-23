@@ -765,6 +765,12 @@ def create_env(history_length, reward_type, start_date, end_date, stocks, scaler
 
     # Combine all stocks' processed data into a single DataFrame with MultiIndex
     df = pd.concat(processed_data, axis=1)
+
+    # Adjust the MultiIndex to have 'Price' as the first level and 'Ticker' as the second level
+    df.columns = df.columns.swaplevel('Price', 'Ticker')
+
+    # Sort the MultiIndex to ensure consistency
+    df = df.sort_index(axis=1)
     df_unscaled = df.copy()
 
     # Define the environment creation function
@@ -776,7 +782,6 @@ def create_env(history_length, reward_type, start_date, end_date, stocks, scaler
 
     # Return results
     return env, env_fn, date_interval, scalers, df, df_unscaled
-
 
 def evaluate_best(venv, expert_actions, SEED):
     print("Best")
