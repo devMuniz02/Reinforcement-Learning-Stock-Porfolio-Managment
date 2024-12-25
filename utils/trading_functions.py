@@ -430,13 +430,13 @@ class TradingEnvUniqueMultiple(gym.Env):
 
         self.Actions.append(int(action))
         if action != self.num_stocks: #actions is a stock
-            next_close_price = self.df_unscaled.iloc[self.history_length+self.steps,self.num_stocks+self.Actions[-1]] #price of action stock on next day
-            close_price = self.df_unscaled.iloc[self.history_length+self.steps-1,self.num_stocks+self.Actions[-1]] #price today of action stock to buy
+            next_close_price = self.df_unscaled.iloc[self.history_length+self.steps]['Close'].iloc[self.Actions[-1]] #price of action stock on next day
+            close_price = self.df_unscaled.iloc[self.history_length+self.steps-1]['Close'].iloc[self.Actions[-1]] #price today of action stock to buy
 
             cash_today = self.cash[-1]
             if self.steps != 0: #if not first step
                 if self.shares[-1] != 0:
-                    sell_price = self.df_unscaled.iloc[self.history_length+self.steps-1,self.num_stocks+self.Actions[-2]] #sell price of current stock
+                    sell_price = self.df_unscaled.iloc[self.history_length+self.steps-1]['Close'].iloc[self.Actions[-2]] #sell price of current stock
                 if self.Actions[-1] != self.Actions[-2]: #if different stock than previous
                     cash_today = (self.cash[-1] + (1 - self.sell_com) * self.shares[-1] * sell_price)
                     self.shares.append((1 - self.buy_com) * cash_today / close_price)
@@ -453,9 +453,9 @@ class TradingEnvUniqueMultiple(gym.Env):
             cash_today = self.cash[-1]
             if self.steps != 0:
                 if self.shares[-1] != 0: #if you have shares
-                    sell_price = self.df_unscaled.iloc[self.history_length+self.steps-1,self.num_stocks+self.Actions[-2]]
-                    next_close_price = self.df_unscaled.iloc[self.history_length+self.steps,self.num_stocks+self.Actions[-2]]
-                    close_price = self.df_unscaled.iloc[self.history_length+self.steps-1,self.num_stocks+self.Actions[-2]]
+                    sell_price = self.df_unscaled.iloc[self.history_length+self.steps-1]['Close'].iloc[self.Actions[-2]]
+                    next_close_price = self.df_unscaled.iloc[self.history_length+self.steps]['Close'].iloc[self.Actions[-2]]
+                    close_price = self.df_unscaled.iloc[self.history_length+self.steps-1]['Close'].iloc[self.Actions[-2]]
                     cash_today = (self.cash[-1] + (1 - self.sell_com) * self.shares[-1] * sell_price)
                     self.shares.append(0)
                     self.cash.append(cash_today)
@@ -660,7 +660,6 @@ def create_env_unique(history_length, reward_type, start_date, end_date, stocks,
         df_unscaled.append(unscaled_data_combined)
 
     # Concatenate all stock data into one DataFrame
-    df = pd.concat(df, axis=1)
     df_unscaled = pd.concat(df_unscaled, axis=1)
 
     # Return the environment setup
@@ -699,7 +698,7 @@ def create_env(history_length, reward_type, start_date, end_date, stocks, scaler
     # Validate and adjust start_date to ensure sufficient data points
     while True:
         try:
-            date_interval = yf.download(stocks[0], start=start_date, end=end_date, interval=interval, progress=False).shape[0]
+            date_interval = yf.download(stocks[0], start=start_date, end=end_date, interval=interval, progress=False, actions=True, rounding=True).shape[0]
             if date_interval < 27:  # If data is insufficient, adjust the start_date
                 start_date = (datetime.datetime.strptime(start_date, '%Y-%m-%d') - datetime.timedelta(days=30)).strftime('%Y-%m-%d')
                 add_date = True
@@ -716,7 +715,7 @@ def create_env(history_length, reward_type, start_date, end_date, stocks, scaler
 
     # Download data for all stocks
     try:
-        data = yf.download(stocks, start=start_date, end=end_date, interval=interval, progress=False, group_by='ticker')
+        data = yf.download(stocks, start=start_date, end=end_date, interval=interval, progress=False, group_by='ticker', actions=True, rounding=True)
     except Exception as e:
         print(f"Failed to fetch stock data: {e}")
         return None, None, None, scalers, None, None
