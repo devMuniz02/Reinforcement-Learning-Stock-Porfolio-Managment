@@ -1,4 +1,3 @@
-
 # Reinforcement-Learning-Stock-Portfolio-Management
 
 A Python package for stock portfolio management using **Reinforcement Learning (RL)** and **Behavioral Cloning (BC)**. This project allows users to train, evaluate, and test agents in a stock trading environment with support for custom data, multiple algorithms, and reward structures.
@@ -8,11 +7,9 @@ A Python package for stock portfolio management using **Reinforcement Learning (
 ## Table of Contents
 
 - [Features](#features)
-- [Installation](#installation)
 - [Quick Start](#quick-start)
 - [How It Works](#how-it-works)
 - [Examples and Results](#examples-and-results)
-- [Contributing](#contributing)
 - [License](#license)
 
 ---
@@ -24,26 +21,6 @@ A Python package for stock portfolio management using **Reinforcement Learning (
 - **Custom Environments:** Easily integrate new stock data or reward structures.
 - **Visualization Tools:** Monitor rewards, stock prices, and portfolio values during training and evaluation.
 - **Multi-Environment Support:** Train using vectorized environments for faster convergence.
-
----
-
-## Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/Reinforcement-Learning-Stock-Portfolio-Management.git
-   cd Reinforcement-Learning-Stock-Portfolio-Management
-   ```
-
-2. Install the required dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Install the package locally:
-   ```bash
-   pip install .
-   ```
 
 ---
 
@@ -136,15 +113,8 @@ The following plot shows trades executed by the RL agent during evaluation:
 
 ---
 
-## Contributing
-
-We welcome contributions! To contribute:
-
-1. Fork the repository.
-2. Create a new branch: `git checkout -b my-feature-branch`
-3. Make your changes and commit: `git commit -m "Add new feature"`
-4. Push to the branch: `git push origin my-feature-branch`
-5. Submit a pull request.
+### Check Out My Other Projects
+Explore more of my AI and ML work [here](https://github.com/devMuniz02/AI-ML-Code-and-projects/).
 
 ---
 
