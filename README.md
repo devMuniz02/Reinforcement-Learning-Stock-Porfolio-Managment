@@ -1,6 +1,97 @@
+[![ArXiv](https://img.shields.io/badge/ArXiv-2512.16841-B31B1B?logo=arxiv&logoColor=white)](https://arxiv.org/abs/2512.16841)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-devmuniz-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/devmuniz)
+[![GitHub Profile](https://img.shields.io/badge/GitHub-devMuniz02-181717?logo=github&logoColor=white)](https://github.com/devMuniz02)
+[![Portfolio](https://img.shields.io/badge/Portfolio-devmuniz02.github.io-0F172A?logo=googlechrome&logoColor=white)](https://devmuniz02.github.io/)
+[![Hugging Face](https://img.shields.io/badge/Hugging%20Face-manu02-FFD21E?logoColor=black)](https://huggingface.co/manu02)
+
 # Reinforcement-Learning-Stock-Portfolio-Management
 
 A Python package for stock portfolio management using **Reinforcement Learning (RL)** and **Behavioral Cloning (BC)**. This project allows users to train, evaluate, and test agents in a stock trading environment with support for custom data, multiple algorithms, and reward structures.
+
+- [Features](#features) - [Quick Start](#quick-start) - [How It Works](#how-it-works) - [Examples and Results](#examples-and-results) - [License](#license)
+
+## Overview
+
+Reinforcement-Learning-Stock-Porfolio-Managment
+
+## Repository Structure
+
+| Path | Description |
+| --- | --- |
+| `assets/` | Images, figures, or other supporting media used by the project. |
+| `notebooks/` | Exploratory notebooks and experiment walkthroughs. |
+| `utils/` | Reusable helper modules and shared utility functions. |
+| `.gitignore` | Top-level file included in the repository. |
+| `Learn.ipynb` | Notebook used for experiments, analysis, or interactive demos. |
+| `LICENSE` | Repository license information. |
+| `README.md` | Primary project documentation. |
+| `requirements.txt` | Python dependency specification for local setup. |
+
+## Getting Started
+
+1. Clone the repository.
+
+   ```bash
+   git clone https://github.com/devMuniz02/Reinforcement-Learning-Stock-Porfolio-Managment.git
+   cd Reinforcement-Learning-Stock-Porfolio-Managment
+   ```
+
+2. Prepare the local environment.
+
+Install Python dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+3. Run or inspect the project entry point.
+
+Open the notebook files in Jupyter or VS Code to reproduce the workflow documented in the repository.
+
+## Features
+
+- **Reinforcement Learning (RL):** Train agents using algorithms like PPO, SAC, or DQN for optimizing stock portfolios.
+- **Behavioral Cloning (BC):** Learn trading strategies from historical expert data.
+- **Custom Environments:** Easily integrate new stock data or reward structures.
+- **Visualization Tools:** Monitor rewards, stock prices, and portfolio values during training and evaluation.
+- **Multi-Environment Support:** Train using vectorized environments for faster convergence.
+
+---
+
+## Examples and Results
+
+### 1. **Training Reward Curve**
+This graph shows the cumulative reward achieved during training using PPO:
+
+![Training Reward Curve](https://github.com/yourusername/Reinforcement-Learning-Stock-Portfolio-Management/images/reward_curve.png)
+
+---
+
+### 2. **Portfolio Value Over Time**
+Performance of RL and BC models compared to a baseline (e.g., Buy and Hold):
+
+| **Algorithm**       | **Final Portfolio Value** | **Sharpe Ratio** |
+|----------------------|---------------------------|------------------|
+| PPO (RL)            | $125,000                  | 1.45             |
+| Behavioral Cloning   | $110,000                  | 1.20             |
+| Buy and Hold (Baseline) | $100,000               | 1.05             |
+
+---
+
+### 3. **Trade Visualization**
+The following plot shows trades executed by the RL agent during evaluation:
+
+![Trade Visualization](https://github.com/yourusername/Reinforcement-Learning-Stock-Portfolio-Management/images/trades.png)
+
+---
+
+### Check Out My Other Projects
+Explore more of my AI and ML work [here](https://github.com/devMuniz02/AI-ML-Code-and-projects/).
+
+---
+
+## License
+
+This project is licensed under the MIT License. See the `LICENSE` file for more details.
 
 ---
 
@@ -11,16 +102,6 @@ A Python package for stock portfolio management using **Reinforcement Learning (
 - [How It Works](#how-it-works)
 - [Examples and Results](#examples-and-results)
 - [License](#license)
-
----
-
-## Features
-
-- **Reinforcement Learning (RL):** Train agents using algorithms like PPO, SAC, or DQN for optimizing stock portfolios.
-- **Behavioral Cloning (BC):** Learn trading strategies from historical expert data.
-- **Custom Environments:** Easily integrate new stock data or reward structures.
-- **Visualization Tools:** Monitor rewards, stock prices, and portfolio values during training and evaluation.
-- **Multi-Environment Support:** Train using vectorized environments for faster convergence.
 
 ---
 
@@ -83,43 +164,5 @@ This package leverages custom Gym environments to simulate stock trading. Agents
 
 3. **Metrics:**
    - Tracks rewards, Sharpe ratios, and portfolio values during training and evaluation.
-
----
-
-## Examples and Results
-
-### 1. **Training Reward Curve**
-This graph shows the cumulative reward achieved during training using PPO:
-
-![Training Reward Curve](https://github.com/yourusername/Reinforcement-Learning-Stock-Portfolio-Management/images/reward_curve.png)
-
----
-
-### 2. **Portfolio Value Over Time**
-Performance of RL and BC models compared to a baseline (e.g., Buy and Hold):
-
-| **Algorithm**       | **Final Portfolio Value** | **Sharpe Ratio** |
-|----------------------|---------------------------|------------------|
-| PPO (RL)            | $125,000                  | 1.45             |
-| Behavioral Cloning   | $110,000                  | 1.20             |
-| Buy and Hold (Baseline) | $100,000               | 1.05             |
-
----
-
-### 3. **Trade Visualization**
-The following plot shows trades executed by the RL agent during evaluation:
-
-![Trade Visualization](https://github.com/yourusername/Reinforcement-Learning-Stock-Portfolio-Management/images/trades.png)
-
----
-
-### Check Out My Other Projects
-Explore more of my AI and ML work [here](https://github.com/devMuniz02/AI-ML-Code-and-projects/).
-
----
-
-## License
-
-This project is licensed under the MIT License. See the `LICENSE` file for more details.
 
 ---
